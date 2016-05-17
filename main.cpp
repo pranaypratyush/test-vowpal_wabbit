@@ -20,6 +20,7 @@
 #include <vector>
 #include <algorithm>
 #include <unistd.h>
+#include <opencv-3.1.0-dev/opencv2/highgui.hpp>
 //#include "pstream.h"
 
 using namespace std;
@@ -34,7 +35,9 @@ int main(int argc, char** argv)
     }
 
     Mat image;
+    Mat denoised;
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
+    fastNlMeansDenoisingColored(image, denoised,10,10,7,29);
     Mat hsv_image;
     cvtColor(image, hsv_image, CV_BGR2HSV);
 
@@ -73,23 +76,63 @@ int main(int argc, char** argv)
     command += "temp.txt";
     command += " -i ";
     command += argv[2];
-    command += "--quiet";
+    command += " --quiet ";
     system(command.c_str());
-    usleep(2000000);
+    usleep(200000);
 
+    Mat image1(image.rows,image.cols,CV_8UC3,Scalar(0,0,0));
+    image.copyTo(image);
     ifstream predict("predict");
-    for (int i = 0; i < hsv_image.rows; ++i)
+    double d;
+    for (int i = 0; i < image.rows; ++i)
     {
-        for (int j = 0; j < hsv_image.cols; ++j)
+        for (int j = 0; j < image.cols; ++j)
         {
-            Vec3b &hsv = hsv_image.at<Vec3b>(i, j);
-            getline(predict, line);
+            Vec3b &Color = image1.at<Vec3b>(i, j);
+            predict >> d;
 
-            switch (stoi(line))
+            switch (int(d))
             {
-                
+            case 1:
+                Color[0] = 0;
+                Color[1] = 0;
+                Color[2] = 0;
+                break;
+
+            case 2:
+                Color[0] = 0;
+                Color[1] = 255;
+                Color[2] = 255;
+                break;
+
+            case 3:
+                Color[0] = 0;
+                Color[1] = 255;
+                Color[2] = 0;
+                break;
+
+            case 4:
+                Color[0] = 0;
+                Color[1] = 0;
+                Color[2] = 255;
+                break;
+            default:
+                cerr<<"Unknown prediction at ("<<i<<","<<j<<")."<<endl;
+                return 0;
             }
+
         }
     }
+    
+//    erode(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
+//    dilate(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
+    medianBlur(image1, image1, 3);
+
+    
+    imshow("Original Image", image);
+    imshow("Denoised Image", denoised);
+    imshow("Prediction", image1);
+    waitKey(0);
+    destroyAllWindows();
 }
 
