@@ -20,9 +20,15 @@
 #include <vector>
 #include <algorithm>
 #include <unistd.h>
-#include <opencv-3.1.0-dev/opencv2/highgui.hpp>
-#include <opencv-3.1.0-dev/opencv2/imgproc.hpp>
-//#include "pstream.h"
+#include <sys/types.h>   // Types used in sys/socket.h and netinet/in.h
+#include <netinet/in.h>  // Internet domain address structures and functions
+#include <sys/socket.h>  // Structures and functions used for socket API
+#include <netdb.h>       // Used for domain/DNS hostname lookup
+#include <unistd.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <arpa/inet.h>
+#include <opencv-3.1.0-dev/opencv2/core/matx.hpp>
 
 using namespace std;
 using namespace cv;
@@ -38,61 +44,76 @@ int main(int argc, char** argv)
     Mat image;
     Mat denoised;
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
-    fastNlMeansDenoisingColored(image, denoised, 4, 7, 21);
+    fastNlMeansDenoisingColored(image, denoised, 2);
+    medianBlur(denoised,denoised,Mat());
     Mat hsv_image;
     cvtColor(denoised, hsv_image, CV_BGR2HSV);
 
-    ofstream temp("temp.txt");
-    ostringstream ss;
-    string line = "";
-    for (int i = 0; i < hsv_image.rows; ++i)
-    {
-        for (int j = 0; j < hsv_image.cols; ++j)
-        {
-            Vec3b &hsv = hsv_image.at<Vec3b>(i, j);
-
-            ss.str("");
-            line = "| ";
-            ss << (int) hsv[0];
-            ss << " ";
-            ss << (int) hsv[1];
-            ss << " ";
-            ss << (int) hsv[2];
-            line += ss.str();
-            line += "\n";
-            temp << line;
-        }
-    }
-    temp.close();
-    //http://pstreams.sourceforge.net/
-    // run a process and create a streambuf that reads its stdout and stderr
-
-    //    redi::ipstream proc("", redi::pstreams::pstderr);
-    //    std::string line;
-    //    // read child's stdout
-    //    while (std::getline(proc.out(), line))
-    //        std::cout << "stdout: " << line << 'n';
-    string command = "vw -t -p predict ";
-    command += " -d ";
-    command += "temp.txt";
-    command += " -i ";
+    system("killall vw");
+    string command = "vw -t --daemon --quiet --port 26542 -i ";
     command += argv[2];
-    command += " --quiet ";
     system(command.c_str());
-//    usleep(200000);
+
+
+    int socketHandle;
+    if ((socketHandle = socket(AF_INET, SOCK_STREAM, IPPROTO_IP)) < 0)
+    {
+        close(socketHandle);
+        exit(EXIT_FAILURE);
+    }
+    struct sockaddr_in localSocketInfo;
+    struct hostent *hPtr;
+
+    bzero(&localSocketInfo, sizeof (sockaddr_in)); // Clear structure memory
+
+    // Get system information
+    /*
+        if ((hPtr = gethostbyname("localhost")) == NULL)
+        {
+            cerr << "System DNS name resolution not configured properly." << endl;
+            cerr << "Error number: " << ECONNREFUSED << endl;
+            exit(EXIT_FAILURE);
+        }
+     */
+    // Load system information for remote socket server into socket data structures
+
+    //memcpy((char *) &localSocketInfo.sin_addr, hPtr->h_addr, hPtr->h_length);
+    localSocketInfo.sin_family = AF_INET;
+    localSocketInfo.sin_port = htons((u_short) 26542); // Set port number
+    inet_aton("127.0.0.1", &localSocketInfo.sin_addr);
+
+    usleep(200000);
+    if ((connect(socketHandle, (struct sockaddr *) &localSocketInfo, sizeof (sockaddr_in)) < 0))
+    {
+        close(socketHandle);
+        exit(EXIT_FAILURE);
+    }
+
+
 
     Mat image1(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
     image.copyTo(image);
-    ifstream predict("predict");
-    double d;
+
+
+    String payload;
     for (int i = 0; i < image.rows; ++i)
     {
         for (int j = 0; j < image.cols; ++j)
         {
             Vec3b &Color = image1.at<Vec3b>(i, j);
-            predict >> d;
+            Vec3b &hsv = hsv_image.at<Vec3b>(i, j);
+            payload += " | ";
+            payload += hsv[0];
+            payload += " ";
+            payload += hsv[1];
+            payload += " ";
+            payload += hsv[2];
+            payload += "\n";
+            send(socketHandle, payload.c_str(), strlen(payload.c_str()) + 1, 0);
+            char a;
+            recv(socketHandle, &a, sizeof (a), 0);
 
-            switch (int(d))
+            switch (int(a) - '0')
             {
             case 1:
                 Color[0] = 0;
@@ -124,51 +145,50 @@ int main(int argc, char** argv)
 
         }
     }
-    /*
-    for(int i=0;i<1;i++)
-    {
-        erode(image1,image1,Mat());
-        dilate(image1,image1,Mat());
-    }
-    */
-    predict.close();
-    system("rm predict");
-    system("rm temp.txt");
+    system("killall vw");
+
+    //    for(int i=0;i<1;i++)
+    //    {
+    //        erode(image1,image1,Mat());
+    //        dilate(image1,image1,Mat());
+    //    }
+
+
     //    erode(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
     //    dilate(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
     //    medianBlur(image1, image1, 3);
 
     //    cvtColor(image1, hsv_image, CV_BGR2HSV);
-//    Mat denoised1;
-//    fastNlMeansDenoisingColored(image, denoised1,2);
-//    cvtColor(denoised1, hsv_image, CV_BGR2HSV );
-//    Mat image_canny(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
-//    Mat h_channel, _h_channel;
-//    //extracting the h channel
-//    extractChannel(hsv_image, h_channel, 0);
-//    //http://www.academypublisher.com/proc/isip09/papers/isip09p109.pdf
-//    
-//    Mat gray;
-//    cvtColor(denoised1,gray,CV_BGR2GRAY);
-//    double otsu_thresh_val = cv::threshold(h_channel, _h_channel, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-//    Canny(h_channel, image_canny, otsu_thresh_val*0.75 , otsu_thresh_val);
-//    cout<<otsu_thresh_val<<endl;
-//    
-//    namedWindow( "Original Image", WINDOW_AUTOSIZE );
-//    namedWindow( "Denoised Image", WINDOW_AUTOSIZE );
-//    namedWindow( "Prediction", WINDOW_AUTOSIZE );
-//    namedWindow( "Edge Map", WINDOW_AUTOSIZE );
+    //    Mat denoised1;
+    //    fastNlMeansDenoisingColored(image, denoised1,2);
+    //    cvtColor(denoised1, hsv_image, CV_BGR2HSV );
+    //    Mat image_canny(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
+    //    Mat h_channel, _h_channel;
+    //    //extracting the h channel
+    //    extractChannel(hsv_image, h_channel, 0);
+    //    //http://www.academypublisher.com/proc/isip09/papers/isip09p109.pdf
+    //    
+    //    Mat gray;
+    //    cvtColor(denoised1,gray,CV_BGR2GRAY);
+    //    double otsu_thresh_val = cv::threshold(h_channel, _h_channel, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+    //    Canny(h_channel, image_canny, otsu_thresh_val*0.75 , otsu_thresh_val);
+    //    cout<<otsu_thresh_val<<endl;
+    //    
+    //    namedWindow( "Original Image", WINDOW_AUTOSIZE );
+    //    namedWindow( "Denoised Image", WINDOW_AUTOSIZE );
+    //    namedWindow( "Prediction", WINDOW_AUTOSIZE );
+    //    namedWindow( "Edge Map", WINDOW_AUTOSIZE );
     imshow("Original Image", image);
     imshow("Denoised Image", denoised);
     imshow("Prediction", image1);
-//    imshow("Edge Map", image_canny);
-//    imshow("Gray",h_channel);
-    moveWindow( "Original Image", 100,150 );
-    moveWindow( "Denoised Image", 100,150 );
-    moveWindow( "Prediction", 100,150 );
-//    moveWindow( "Edge Map", 100,150 );
-//    moveWindow( "Gray", 100,150 );
-    
+    //    imshow("Edge Map", image_canny);
+    //    imshow("Gray",h_channel);
+    moveWindow("Original Image", 100, 150);
+    moveWindow("Denoised Image", 100, 150);
+    moveWindow("Prediction", 100, 150);
+    //    moveWindow( "Edge Map", 100,150 );
+    //    moveWindow( "Gray", 100,150 );
+
     waitKey(0);
     destroyAllWindows();
     return 0;
