@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <unistd.h>
 #include <opencv-3.1.0-dev/opencv2/highgui.hpp>
+#include <opencv-3.1.0-dev/opencv2/imgproc.hpp>
 //#include "pstream.h"
 
 using namespace std;
@@ -37,9 +38,9 @@ int main(int argc, char** argv)
     Mat image;
     Mat denoised;
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
-    fastNlMeansDenoisingColored(image, denoised,10,10,7,29);
+    fastNlMeansDenoisingColored(image, denoised, 4, 7, 21);
     Mat hsv_image;
-    cvtColor(image, hsv_image, CV_BGR2HSV);
+    cvtColor(denoised, hsv_image, CV_BGR2HSV);
 
     ofstream temp("temp.txt");
     ostringstream ss;
@@ -78,9 +79,9 @@ int main(int argc, char** argv)
     command += argv[2];
     command += " --quiet ";
     system(command.c_str());
-    usleep(200000);
+//    usleep(200000);
 
-    Mat image1(image.rows,image.cols,CV_8UC3,Scalar(0,0,0));
+    Mat image1(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
     image.copyTo(image);
     ifstream predict("predict");
     double d;
@@ -117,22 +118,49 @@ int main(int argc, char** argv)
                 Color[2] = 255;
                 break;
             default:
-                cerr<<"Unknown prediction at ("<<i<<","<<j<<")."<<endl;
+                cerr << "Unknown prediction at (" << i << "," << j << ")." << endl;
                 return 0;
             }
 
         }
     }
-    
-//    erode(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
-//    dilate(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
-    medianBlur(image1, image1, 3);
 
+
+    //    erode(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
+    //    dilate(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
+    //    medianBlur(image1, image1, 3);
+
+    //    cvtColor(image1, hsv_image, CV_BGR2HSV);
+    Mat denoised1;
+    fastNlMeansDenoisingColored(image, denoised1,2);
+    cvtColor(denoised1, hsv_image, CV_BGR2HSV );
+    Mat image_canny(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
+    Mat h_channel, _h_channel;
+    //extracting the h channel
+    extractChannel(hsv_image, h_channel, 0);
+    //http://www.academypublisher.com/proc/isip09/papers/isip09p109.pdf
     
+    Mat gray;
+    cvtColor(denoised1,gray,CV_BGR2GRAY);
+    double otsu_thresh_val = cv::threshold(h_channel, _h_channel, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+    Canny(h_channel, image_canny, otsu_thresh_val*0.75 , otsu_thresh_val);
+    cout<<otsu_thresh_val<<endl;
+    
+    namedWindow( "Original Image", WINDOW_AUTOSIZE );
+    namedWindow( "Denoised Image", WINDOW_AUTOSIZE );
+    namedWindow( "Prediction", WINDOW_AUTOSIZE );
+    namedWindow( "Edge Map", WINDOW_AUTOSIZE );
     imshow("Original Image", image);
     imshow("Denoised Image", denoised);
     imshow("Prediction", image1);
+    imshow("Edge Map", image_canny);
+    imshow("Gray",h_channel);
+    moveWindow( "Original Image", 10,50 );
+    moveWindow( "Denoised Image", 10,50 );
+    moveWindow( "Prediction", 10,50 );
+    moveWindow( "Edge Map", 10,50 );
     waitKey(0);
+    
     destroyAllWindows();
 }
 
