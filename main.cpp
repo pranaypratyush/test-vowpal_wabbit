@@ -124,43 +124,53 @@ int main(int argc, char** argv)
 
         }
     }
-
-
+    /*
+    for(int i=0;i<1;i++)
+    {
+        erode(image1,image1,Mat());
+        dilate(image1,image1,Mat());
+    }
+    */
+    predict.close();
+    system("rm predict");
+    system("rm temp.txt");
     //    erode(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
     //    dilate(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
     //    medianBlur(image1, image1, 3);
 
     //    cvtColor(image1, hsv_image, CV_BGR2HSV);
-    Mat denoised1;
-    fastNlMeansDenoisingColored(image, denoised1,2);
-    cvtColor(denoised1, hsv_image, CV_BGR2HSV );
-    Mat image_canny(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
-    Mat h_channel, _h_channel;
-    //extracting the h channel
-    extractChannel(hsv_image, h_channel, 0);
-    //http://www.academypublisher.com/proc/isip09/papers/isip09p109.pdf
-    
-    Mat gray;
-    cvtColor(denoised1,gray,CV_BGR2GRAY);
-    double otsu_thresh_val = cv::threshold(h_channel, _h_channel, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-    Canny(h_channel, image_canny, otsu_thresh_val*0.75 , otsu_thresh_val);
-    cout<<otsu_thresh_val<<endl;
-    
-    namedWindow( "Original Image", WINDOW_AUTOSIZE );
-    namedWindow( "Denoised Image", WINDOW_AUTOSIZE );
-    namedWindow( "Prediction", WINDOW_AUTOSIZE );
-    namedWindow( "Edge Map", WINDOW_AUTOSIZE );
+//    Mat denoised1;
+//    fastNlMeansDenoisingColored(image, denoised1,2);
+//    cvtColor(denoised1, hsv_image, CV_BGR2HSV );
+//    Mat image_canny(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
+//    Mat h_channel, _h_channel;
+//    //extracting the h channel
+//    extractChannel(hsv_image, h_channel, 0);
+//    //http://www.academypublisher.com/proc/isip09/papers/isip09p109.pdf
+//    
+//    Mat gray;
+//    cvtColor(denoised1,gray,CV_BGR2GRAY);
+//    double otsu_thresh_val = cv::threshold(h_channel, _h_channel, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
+//    Canny(h_channel, image_canny, otsu_thresh_val*0.75 , otsu_thresh_val);
+//    cout<<otsu_thresh_val<<endl;
+//    
+//    namedWindow( "Original Image", WINDOW_AUTOSIZE );
+//    namedWindow( "Denoised Image", WINDOW_AUTOSIZE );
+//    namedWindow( "Prediction", WINDOW_AUTOSIZE );
+//    namedWindow( "Edge Map", WINDOW_AUTOSIZE );
     imshow("Original Image", image);
     imshow("Denoised Image", denoised);
     imshow("Prediction", image1);
-    imshow("Edge Map", image_canny);
-    imshow("Gray",h_channel);
-    moveWindow( "Original Image", 10,50 );
-    moveWindow( "Denoised Image", 10,50 );
-    moveWindow( "Prediction", 10,50 );
-    moveWindow( "Edge Map", 10,50 );
-    waitKey(0);
+//    imshow("Edge Map", image_canny);
+//    imshow("Gray",h_channel);
+    moveWindow( "Original Image", 100,150 );
+    moveWindow( "Denoised Image", 100,150 );
+    moveWindow( "Prediction", 100,150 );
+//    moveWindow( "Edge Map", 100,150 );
+//    moveWindow( "Gray", 100,150 );
     
+    waitKey(0);
     destroyAllWindows();
+    return 0;
 }
 
