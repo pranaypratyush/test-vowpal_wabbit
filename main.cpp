@@ -45,7 +45,7 @@ int main(int argc, char** argv)
     Mat denoised;
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
     fastNlMeansDenoisingColored(image, denoised, 2);
-    medianBlur(denoised,denoised,Mat());
+    medianBlur(denoised, denoised, 3);
     Mat hsv_image;
     cvtColor(denoised, hsv_image, CV_BGR2HSV);
 
@@ -102,18 +102,24 @@ int main(int argc, char** argv)
         {
             Vec3b &Color = image1.at<Vec3b>(i, j);
             Vec3b &hsv = hsv_image.at<Vec3b>(i, j);
-            payload += " | ";
-            payload += hsv[0];
+            ostringstream ss("");
+            payload = " | ";
+            ss << (int) hsv[0];
+            payload += ss.str();
             payload += " ";
-            payload += hsv[1];
+            ss.str("");
+            ss << (int) hsv[1];
+            payload += ss.str();
             payload += " ";
-            payload += hsv[2];
+            ss.str("");
+            ss << (int) hsv[2];
+            payload += ss.str();
             payload += "\n";
             send(socketHandle, payload.c_str(), strlen(payload.c_str()) + 1, 0);
-            char a;
+            char a[2];
             recv(socketHandle, &a, sizeof (a), 0);
 
-            switch (int(a) - '0')
+            switch (int(a[0]) - '0')
             {
             case 1:
                 Color[0] = 0;
