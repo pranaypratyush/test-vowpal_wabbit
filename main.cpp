@@ -16,19 +16,33 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <iostream>
 #include <sstream>
-#include <fstream>
-#include <vector>
-#include <algorithm>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
-#include <opencv-3.1.0-dev/opencv2/highgui.hpp>
-#include <opencv-3.1.0-dev/opencv2/imgproc.hpp>
+#include <signal.h>
 //#include "pstream.h"
 
 using namespace std;
 using namespace cv;
 
+pid_t pid, pid2;
+
+void signalHandler(int signum)
+{
+    cout << "Interrupt signal (" << signum << ") received.\n";
+
+    system("rm /tmp/vw_input");
+    system("rm /tmp/vw_output");
+    kill(pid, SIGTERM);
+    kill(pid2, SIGTERM);
+    exit(signum);
+
+}
+
 int main(int argc, char** argv)
 {
+
     if (argc != 3)
     {
         cout << " Usage: display_image ImageToLoadAndDisplay" << endl;
@@ -38,62 +52,117 @@ int main(int argc, char** argv)
     Mat image;
     Mat denoised;
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
-    fastNlMeansDenoisingColored(image, denoised,2);
+    fastNlMeansDenoisingColored(image, denoised, 2);
     medianBlur(denoised, denoised, 3);
     Mat hsv_image;
     cvtColor(denoised, hsv_image, CV_BGR2HSV);
 
-    ofstream temp("temp.txt");
-    ostringstream ss;
-    string line = "";
-    for (int i = 0; i < hsv_image.rows; ++i)
+    ///***********DANGEROUS CODE AHEAD (but fast too(hopefully))******************
+
+    signal(SIGINT, signalHandler);
+    if (mkfifo("/tmp/vw_input", 0666) == -1)
     {
-        for (int j = 0; j < hsv_image.cols; ++j)
-        {
-            Vec3b &hsv = hsv_image.at<Vec3b>(i, j);
-
-            ss.str("");
-            line = "| ";
-            ss << (int) hsv[0];
-            ss << " ";
-            ss << (int) hsv[1];
-            ss << " ";
-            ss << (int) hsv[2];
-            line += ss.str();
-            line += "\n";
-            temp << line;
-        }
+        perror("/tmp/vw_input already exists");
+        system("rm /tmp/vw_input");
+        exit(1);
     }
-    temp.close();
-    //http://pstreams.sourceforge.net/
-    // run a process and create a streambuf that reads its stdout and stderr
+    if (mkfifo("/tmp/vw_output", 0666))
+    {
+        perror("/tmp/vw_output alreadt exists");
+        system("rm /tmp/vw_input");
+        system("rm /tmp/vw_output");
+        exit(1);
+    }
 
-    //    redi::ipstream proc("", redi::pstreams::pstderr);
-    //    std::string line;
-    //    // read child's stdout
-    //    while (std::getline(proc.out(), line))
-    //        std::cout << "stdout: " << line << 'n';
-    string command = "vw -t -p predict ";
-    command += " -d ";
-    command += "temp.txt";
-    command += " -i ";
-    command += argv[2];
-    command += " --quiet ";
-    system(command.c_str());
-    //    usleep(200000);
+    pid = fork();
+
+    if (pid < 0)
+    {
+        perror("Fork failed");
+        exit(1);
+    }
+    else if (pid == 0)
+    {
+        //I am child
+        //        usleep(200000);
+        string arg = "vw -t --quiet -p /dev/stdout -i ";
+        arg += argv[2];
+        arg += " < /tmp/vw_input > /tmp/vw_output";
+        system(arg.c_str());
+
+        exit(0);
+    }
+    // I AM PARENT
+    int in_handle = open("/tmp/vw_input", O_WRONLY);
+    if (in_handle == -1)
+    {
+        perror("Can't open /tmp/vw_input");
+        kill(pid, SIGTERM);
+        system("rm /tmp/vw_input");
+        system("rm /tmp/vw_output");
+        exit(1);
+    }
+
+
+    pid2 = fork();
+    if (pid2 < 0)
+    {
+        perror("Fork failed");
+        exit(1);
+    }
+    else if (pid2 == 0)
+    {// I am child
+        stringstream ss;
+        string line;
+        for (int i = 0; i < hsv_image.rows; ++i)
+        {
+            for (int j = 0; j < hsv_image.cols; ++j)
+            {
+                Vec3b &hsv = hsv_image.at<Vec3b>(i, j);
+
+                ss.str("");
+                line = " | ";
+                ss << (int) hsv[0];
+                ss << " ";
+                ss << (int) hsv[1];
+                ss << " ";
+                ss << (int) hsv[2];
+                line += ss.str();
+                line += "\n";
+                write(in_handle, line.c_str(), strlen(line.c_str()));
+            }
+        }
+        close(in_handle);
+        exit(0);
+    }
+
 
     Mat image1(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
-    image.copyTo(image);
-    ifstream predict("predict");
-    double d;
+    //    image.copyTo(image);
+    //    usleep(200000);
+    int out_handle = open("/tmp/vw_output", O_RDONLY);
+    if (out_handle == -1)
+    {
+        perror("Can't open /tmp/out_input");
+        kill(pid, SIGTERM);
+        kill(pid2, SIGTERM);
+        system("rm /tmp/vw_input");
+        system("rm /tmp/vw_output");
+        exit(1);
+    }
+    char a, t;
     for (int i = 0; i < image.rows; ++i)
     {
         for (int j = 0; j < image.cols; ++j)
         {
             Vec3b &Color = image1.at<Vec3b>(i, j);
-            predict >> d;
-
-            switch (int(d))
+            read(out_handle, &a, 1);
+            read(out_handle, &t, 1);
+            if (t != '\n')
+            {
+                perror("prediction not terminated with null char");
+            }
+            switch (int(a - '0'))
             {
             case 1:
                 Color[0] = 0;
@@ -125,53 +194,21 @@ int main(int argc, char** argv)
 
         }
     }
-    /*
-    for(int i=0;i<1;i++)
-    {
-        erode(image1,image1,Mat());
-        dilate(image1,image1,Mat());
-    }
-     */
-    predict.close();
-    system("rm predict");
-    system("rm temp.txt");
-    //    erode(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
-    //    dilate(image1, image1, Mat(), Point(-1, 1), 1, 1, 1);
-    //    medianBlur(image1, image1, 3);
+    close(out_handle);
+    close(in_handle);
+    system("rm /tmp/vw_input");
+    system("rm /tmp/vw_output");
+    kill(pid, SIGTERM);
+    kill(pid2, SIGTERM);
 
-    //    cvtColor(image1, hsv_image, CV_BGR2HSV);
-    //    Mat denoised1;
-    //    fastNlMeansDenoisingColored(image, denoised1,2);
-    //    cvtColor(denoised1, hsv_image, CV_BGR2HSV );
-    //    Mat image_canny(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
-    //    Mat h_channel, _h_channel;
-    //    //extracting the h channel
-    //    extractChannel(hsv_image, h_channel, 0);
-    //    //http://www.academypublisher.com/proc/isip09/papers/isip09p109.pdf
-    //    
-    //    Mat gray;
-    //    cvtColor(denoised1,gray,CV_BGR2GRAY);
-    //    double otsu_thresh_val = cv::threshold(h_channel, _h_channel, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-    //    Canny(h_channel, image_canny, otsu_thresh_val*0.75 , otsu_thresh_val);
-    //    cout<<otsu_thresh_val<<endl;
-    //    
-    //    namedWindow( "Original Image", WINDOW_AUTOSIZE );
-    //    namedWindow( "Denoised Image", WINDOW_AUTOSIZE );
-    //    namedWindow( "Prediction", WINDOW_AUTOSIZE );
-    //    namedWindow( "Edge Map", WINDOW_AUTOSIZE );
     imshow("Original Image", image);
     imshow("Denoised Image", denoised);
     imshow("Prediction", image1);
-    //    imshow("Edge Map", image_canny);
-    //    imshow("Gray",h_channel);
     moveWindow("Original Image", 100, 150);
     moveWindow("Denoised Image", 100, 150);
     moveWindow("Prediction", 100, 150);
-    //    moveWindow( "Edge Map", 100,150 );
-    //    moveWindow( "Gray", 100,150 );
-
     waitKey(0);
-    //    destroyAllWindows();
+
     return 0;
 }
 
