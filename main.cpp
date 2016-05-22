@@ -57,7 +57,7 @@ int main(int argc, char** argv)
     Mat hsv_image;
     cvtColor(denoised, hsv_image, CV_BGR2HSV);
 
-    ///***********DANGEROUS CODE AHEAD (but fast too(hopefully))******************
+    //***********DANGEROUS CODE AHEAD (but fast too(hopefully))******************
 
     signal(SIGINT, signalHandler);
     if (mkfifo("/tmp/vw_input", 0666) == -1)
@@ -88,8 +88,8 @@ int main(int argc, char** argv)
         string arg = "vw -t --quiet -p /dev/stdout -i ";
         arg += argv[2];
         arg += " < /tmp/vw_input > /tmp/vw_output";
-        system(arg.c_str());
-
+        //        system(arg.c_str());
+        execl("/bin/sh", "sh", "-c", arg.c_str(), (char *) 0);
         exit(0);
     }
     // I AM PARENT
