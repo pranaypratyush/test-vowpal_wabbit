@@ -29,13 +29,16 @@
 
 class vw_test {
 public:
-    pid_t pid, pid2;
+    pid_t pid;
     int in_handle, out_handle;
     void vw_test_init(char *path_to_vw_model);
     void getPredictions(cv::Mat original, cv::Mat prediction);
     void clean_up();
     vw_test(char *path_to_vw_model);
     ~vw_test();
+private:
+    static void write_to_input(cv::Mat, int in_handle);
+    static void read_from_output(cv::Mat, int out_handle);
 };
 
 #endif /* VW_TEST_H */
