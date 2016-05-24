@@ -32,7 +32,7 @@ public:
     pid_t pid, pid2;
     int in_handle, out_handle;
     void vw_test_init(char *path_to_vw_model);
-    void getPredictions(cv::Mat *original, cv::Mat *prediction);
+    void getPredictions(cv::Mat original, cv::Mat prediction);
     void clean_up();
     vw_test(char *path_to_vw_model);
     ~vw_test();

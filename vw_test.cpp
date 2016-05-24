@@ -31,22 +31,6 @@ void vw_test::vw_test_init(char *path_to_vw_model)
         exit(1);
     }
 
-    in_handle = open("/tmp/vw_input", O_WRONLY | O_NONBLOCK);
-    out_handle = open("/tmp/vw_output", O_RDONLY | O_NONBLOCK);
-    if (in_handle == -1)
-    {
-        perror("Can't open /tmp/vw_input");
-        system("rm /tmp/vw_input");
-        system("rm /tmp/vw_output");
-        exit(1);
-    }
-    if (out_handle == -1)
-    {
-        perror("Can't open /tmp/vw_output");
-        system("rm /tmp/vw_input");
-        system("rm /tmp/vw_output");
-        exit(1);
-    }
     pid = fork();
 
     if (pid < 0)
@@ -69,8 +53,28 @@ void vw_test::vw_test_init(char *path_to_vw_model)
         }
         exit(0);
     }
-    // I AM PARENT
 
+    // I AM PARENT
+    ///dangerous here
+    //be extremely cautious 
+    // can be optimized with multithreading
+    usleep(100000);
+    in_handle = open("/tmp/vw_input", O_WRONLY );
+    out_handle = open("/tmp/vw_output", O_RDONLY );
+    if (in_handle == -1)
+    {
+        perror("Can't open /tmp/vw_input");
+        system("rm /tmp/vw_input");
+        system("rm /tmp/vw_output");
+        exit(1);
+    }
+    if (out_handle == -1)
+    {
+        perror("Can't open /tmp/vw_output");
+        system("rm /tmp/vw_input");
+        system("rm /tmp/vw_output");
+        exit(1);
+    }
 
 
     //        pid2 = fork();
@@ -82,11 +86,11 @@ void vw_test::vw_test_init(char *path_to_vw_model)
 
 }
 
-void vw_test::getPredictions(Mat *original, Mat *prediction)
+void vw_test::getPredictions(Mat original, Mat prediction)
 {
     Mat hsv_image;
-    cvtColor(*original, hsv_image, CV_BGR2HSV);
-    Mat(original->rows, original->cols, CV_8UC3, Scalar(0, 0, 0)).copyTo(*prediction);
+    cvtColor(original, hsv_image, CV_BGR2HSV);
+//    prediction = Mat(original.rows, original.cols, CV_8UC3, Scalar(0, 0, 0));
 
     stringstream ss;
     string line;
@@ -107,7 +111,7 @@ void vw_test::getPredictions(Mat *original, Mat *prediction)
             line += ss.str();
             line += "\n";
             write(in_handle, line.c_str(), strlen(line.c_str()));
-            Vec3b &Color = prediction->at<Vec3b>(i, j);
+            Vec3b &Color = prediction.at<Vec3b>(i, j);
             read(out_handle, &a, 1);
             read(out_handle, &t, 1);
             if (t != '\n')

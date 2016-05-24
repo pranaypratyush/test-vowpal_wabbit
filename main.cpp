@@ -32,11 +32,11 @@ int main(int argc, char** argv)
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
     fastNlMeansDenoisingColored(image, denoised, 2);
     medianBlur(denoised, denoised, 3);
-    Mat prediction;
+    Mat prediction(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
     //***********DANGEROUS CODE AHEAD (but fast too(hopefully))******************
 
     vw_test new_vw(argv[2]);
-    new_vw.getPredictions(&denoised,&prediction);
+    new_vw.getPredictions(denoised,prediction);
     
 
     imshow("Original Image", image);
