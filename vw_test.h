@@ -18,7 +18,9 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <string>
+#include <stdlib.h>
 #include <iostream>
+#include <stdio.h>
 #include <sstream>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -30,15 +32,18 @@
 class vw_test {
 public:
     pid_t pid;
-    int in_handle, out_handle;
-    void vw_test_init(char *path_to_vw_model);
+    int parallels;
+    
+    void vw_test_init(int parallels, char *path_to_vw_model);
     void getPredictions(cv::Mat original, cv::Mat prediction);
     void clean_up();
-    vw_test(char *path_to_vw_model);
+    vw_test(int parallels,char *path_to_vw_model);
     ~vw_test();
 private:
-    static void write_to_input(cv::Mat, int in_handle);
-    static void read_from_output(cv::Mat, int out_handle);
+    static void write_to_input(cv::Mat, int p_no,int parallels);
+    static void read_from_output(cv::Mat, int p_no,int parallels);
+    const static std::string in_path; 
+    const static std::string out_path; 
 };
 
 #endif /* VW_TEST_H */

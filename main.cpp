@@ -33,14 +33,14 @@ int main(int argc, char** argv)
     Mat denoised;
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
     auto t1 = clk::now();
-    image.copyTo(denoised);
-//    fastNlMeansDenoisingColored(image, denoised, 2);
+//    image.copyTo(denoised);
+    fastNlMeansDenoisingColored(image, denoised, 2);
     medianBlur(denoised, denoised, 3);
     Mat prediction(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
     
     //***********DANGEROUS CODE AHEAD (but fast too(hopefully))******************
 
-    vw_test new_vw(argv[2]);
+    vw_test new_vw(4,argv[2]);
     auto t2 = clk::now();
     new_vw.getPredictions(denoised,prediction);
     auto t3 = clk::now();
