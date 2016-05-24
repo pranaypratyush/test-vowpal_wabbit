@@ -150,6 +150,33 @@ main.cpp.s:
 	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/main.cpp.s
 .PHONY : main.cpp.s
 
+vw_test.o: vw_test.cpp.o
+
+.PHONY : vw_test.o
+
+# target to build an object file
+vw_test.cpp.o:
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/vw_test.cpp.o
+.PHONY : vw_test.cpp.o
+
+vw_test.i: vw_test.cpp.i
+
+.PHONY : vw_test.i
+
+# target to preprocess a source file
+vw_test.cpp.i:
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/vw_test.cpp.i
+.PHONY : vw_test.cpp.i
+
+vw_test.s: vw_test.cpp.s
+
+.PHONY : vw_test.s
+
+# target to generate assembly for a file
+vw_test.cpp.s:
+	$(MAKE) -f CMakeFiles/main.dir/build.make CMakeFiles/main.dir/vw_test.cpp.s
+.PHONY : vw_test.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -162,6 +189,9 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... vw_test.o"
+	@echo "... vw_test.i"
+	@echo "... vw_test.s"
 .PHONY : help
 
 
