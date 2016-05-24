@@ -12,6 +12,7 @@
  */
 #include "vw_test.h"
 #include <thread>
+#include <chrono>
 
 using namespace std;
 using namespace cv;
@@ -71,9 +72,10 @@ void vw_test::getPredictions(Mat original, Mat prediction)
     thread in_thread(vw_test::write_to_input, hsv_image, in_handle);
     thread out_thread(vw_test::read_from_output, prediction, out_handle);
 
-    in_thread.join();
+   
     out_thread.join();
-
+    in_thread.join();
+//    usleep(900000);
 }
 
 void vw_test::clean_up()

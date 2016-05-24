@@ -13,10 +13,12 @@
 
 //#include "pstream.h"
 #include "vw_test.h"
+#include <chrono>
 using namespace std;
 using namespace cv;
+using namespace chrono;
 
-
+typedef std::chrono::high_resolution_clock clk;
 
 int main(int argc, char** argv)
 {
@@ -30,14 +32,18 @@ int main(int argc, char** argv)
     Mat image;
     Mat denoised;
     image = imread(argv[1], CV_LOAD_IMAGE_COLOR); // Read the file
-    fastNlMeansDenoisingColored(image, denoised, 2);
+    auto t1 = clk::now();
+    image.copyTo(denoised);
+//    fastNlMeansDenoisingColored(image, denoised, 2);
     medianBlur(denoised, denoised, 3);
     Mat prediction(image.rows, image.cols, CV_8UC3, Scalar(0, 0, 0));
+    
     //***********DANGEROUS CODE AHEAD (but fast too(hopefully))******************
 
     vw_test new_vw(argv[2]);
+    auto t2 = clk::now();
     new_vw.getPredictions(denoised,prediction);
-    
+    auto t3 = clk::now();
 
     imshow("Original Image", image);
     imshow("Denoised Image", denoised);
@@ -45,6 +51,8 @@ int main(int argc, char** argv)
     moveWindow("Original Image", 100, 150);
     moveWindow("Denoised Image", 100, 150);
     moveWindow("Prediction", 100, 150);
+    cout<<duration_cast<milliseconds>(t2 - t1).count()<<endl;
+    cout<<duration_cast<milliseconds>(t3 - t2).count()<<endl;
     waitKey(0);
 
     return 0;
